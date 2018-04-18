@@ -64,6 +64,16 @@ class Inspector implements BuilderAwareInterface, ConfigAwareInterface, Containe
   protected $isDrupalVmBooted = NULL;
 
   /**
+   * @var array
+   */
+  protected $docksalVmStatus = NULL;
+
+  /**
+   * @var null
+   */
+  protected $isDocksalVmBooted = NULL;
+
+  /**
    * @var \Symfony\Component\Filesystem\Filesystem
    */
   protected $fs;
@@ -403,6 +413,62 @@ class Inspector implements BuilderAwareInterface, ConfigAwareInterface, Containe
     }
 
     return $this->isDrupalVmBooted;
+  }
+
+  /**
+   * Determines if Docksal configuration exists in the project.
+   *
+   * @return bool
+   *   TRUE if Docksal configuration exists.
+   */
+  public function isDocksalPresent() {
+    return is_dir($this->getConfigValue('repo.root') . '/.docksal');
+  }
+
+  /**
+   * Determines if Docksal VM is booted.
+   *
+   * @return bool
+   *   TRUE if Docksal VM is booted.
+   */
+  public function isDocksalVmBooted() {
+    if (!$this->commandExists('fin')) {
+      $this->isDocksalVmBooted = FALSE;
+    }
+
+    if (is_null($this->isDocksalVmBooted)) {
+      $status = $this->getDocksalVmStatus();
+      $machine_name = $this->getConfigValue('project.machine_name');
+      $this->isDocksalBooted = !empty($status[$machine_name]['state'])
+        && $status[$machine_name]['state'] == 'running';
+
+      $statement = $this->isDocksalBooted ? "is" : "is not";
+      $this->logger->debug("Docksal VM $statement booted.");
+    }
+
+    return $this->isDocksalVmBooted;
+  }
+
+  /**
+   * Gets the value of $this->docksalVmStatus. Sets it if empty.
+   *
+   * @return array
+   *   An array of status data.
+   */
+  protected function getDocksalVmStatus() {
+    if (is_null($this->docksalVmStatus)) {
+      $this->setDocksalVmStatus();
+    }
+    return $this->docksalVmStatus;
+  }
+
+  /**
+   * Sets $this->setDocksalVmStatus by executing `fin status`.
+   */
+  protected function setDocksalVmStatus() {
+    $result = $this->executor->execute("fin vm status")
+      ->run();
+    $this->docksalVmStatus = $result->getMessage();
   }
 
   /**
@@ -773,6 +839,7 @@ class Inspector implements BuilderAwareInterface, ConfigAwareInterface, Containe
         'list',
         'recipes:drupalvm:init',
         'recipes:drupalvm:destroy',
+        'recipes:docksal:init',
       ];
       if (!in_array($command_name, $exclude_commands)) {
         $this->warnIfDrupalVmNotRunning();

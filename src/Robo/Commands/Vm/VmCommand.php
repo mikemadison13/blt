@@ -354,4 +354,40 @@ class VmCommand extends BltTasks {
     file_put_contents($this->projectDrushAliasesFile, Yaml::dump($new_aliases));
   }
 
+  /**
+   * Configures and boots a Dockal VM.
+   *
+   * @command recipes:docksal:init
+   *
+   * @throws \Exception
+   */
+  public function docksalInit() {
+    if (!$this->getInspector()->isDocksalPresent()) {
+      $confirm = $this->confirm("Docksal is not currently installed. Install it now? ", TRUE);
+      if ($confirm) {
+        $this->installDocksal();
+      }
+      else {
+        return FALSE;
+      }
+    }
+
+    if (!$this->getInspector()->isDocksalVmBooted()) {
+      $this->installDocksal();
+    }
+  }
+
+  /**
+   * Installs and configures default Docksal instance.
+   * @throws \Exception
+   */
+  protected function installDocksal() {
+    $this->say("Installing Docksal...");
+
+    //$this->createDrushAlias();
+
+    $this->_mkdir($this->getConfigValue('repo.root') . '/.docksal');
+    $this->_exec('fin project start');
+  }
+
 }
